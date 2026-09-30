@@ -60,21 +60,94 @@ const j=async u=>{const r=await fetch(u);if(!r.ok)throw new Error(r.status);retu
 // Avions (OpenSky, zone visible)
 async function loadPlanes(){
   if(!$('c-planes').checked)return;
-  if(map.getZoom()<5){G.planes.clearLayers();$('n-planes').textContent='zoom +';return}
-  const c=map.getCenter(),r=Math.min(250,Math.ceil(map.distance(c,map.getBounds().getNorthEast())/1852));
-  try{
-    const d=await j(`https://api.adsb.lol/v2/point/${c.lat.toFixed(3)}/${c.lng.toFixed(3)}/${r}`);
+
+  if(map.getZoom()<5){
     G.planes.clearLayers();
-    const s=(d.ac||[]).filter(x=>x.lat!=null&&x.lon!=null&&x.alt_baro!=='ground');
+    $('n-planes').textContent='zoom +';
+    return;
+  }
+
+  const c=map.getCenter();
+
+  // Rayon limité pour éviter une requête trop lourde
+  const r=Math.min(
+    100,
+    Math.max(
+      10,
+      Math.ceil(map.distance(c,map.getBounds().getNorthEast())/1852)
+    )
+  );
+
+  const url=`https://api.adsb.lol/v2/point/${c.lat.toFixed(3)}/${c.lng.toFixed(3)}/${r}`;
+
+  try{
+    const response=await fetch(url);
+
+    if(!response.ok){
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const d=await response.json();
+
+    console.log("ADSB.LOL :",d);
+
+    G.planes.clearLayers();
+
+    const s=(d.ac||[]).filter(
+      x=>x.lat!=null &&
+         x.lon!=null &&
+         x.alt_baro!=='ground'
+    );
+
     s.forEach(x=>{
-      const m=L.marker([x.lat,x.lon],{icon:L.divIcon({className:'',html:`<div class="plane" style="transform:rotate(${(x.track||0)-45}deg)">✈</div>`,iconSize:[16,16]})});
-      m.bindPopup(`<b>${(x.flight||'').trim()||x.hex}</b><br>Type : ${x.t||'–'}<br>Altitude : ${typeof x.alt_baro==='number'?x.alt_baro+' ft':'–'}<br>Vitesse : ${x.gs?Math.round(x.gs*1.852)+' km/h':'–'}`);
-      G.planes.addLayer(m)});
+      const m=L.marker(
+        [x.lat,x.lon],
+        {
+          icon:L.divIcon({
+            className:'',
+            html:`<div class="plane"
+              style="transform:rotate(${(x.track||0)-45}deg)">
+              ✈
+            </div>`,
+            iconSize:[16,16]
+          })
+        }
+      );
+
+      m.bindPopup(`
+        <b>${(x.flight||'').trim()||x.hex}</b><br>
+        Type : ${x.t||'–'}<br>
+        Altitude : ${
+          typeof x.alt_baro==='number'
+          ? x.alt_baro+' ft'
+          : '–'
+        }<br>
+        Vitesse : ${
+          x.gs
+          ? Math.round(x.gs*1.852)+' km/h'
+          : '–'
+        }
+      `);
+
+      G.planes.addLayer(m);
+    });
+
     $('n-planes').textContent=s.length;
-  }catch(e){$('n-planes').textContent='!';msg('Avions indisponibles pour le moment. Nouvel essai dans 30 s.')}
+
+    msg(
+      s.length
+      ? `${s.length} avion${s.length>1?'s':''} détecté${s.length>1?'s':''}`
+      : 'Aucun avion détecté dans cette zone.'
+    );
+
+  }catch(e){
+    console.error("Erreur ADSB.LOL :",e);
+
+    $('n-planes').textContent='!';
+
+    msg(`Erreur avions : ${e.message}`);
+  }
 }
-map.on('moveend',()=>{loadPlanes();updCams()});
-setInterval(loadPlanes,30000);
 
 // Séismes (USGS)
 async function loadQuakes(){
