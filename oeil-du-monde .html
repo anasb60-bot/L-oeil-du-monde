@@ -57,97 +57,286 @@ const G={planes:L.layerGroup(),quakes:L.layerGroup(),events:L.layerGroup(),iss:L
 for(const k in G){G[k].addTo(map);$('c-'+k).onchange=e=>{e.target.checked?G[k].addTo(map):map.removeLayer(G[k]);if(k==='planes')loadPlanes()}}
 const j=async u=>{const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json()};
 
-// Avions (OpenSky, zone visible)
-async function loadPlanes(){
-  if(!$('c-planes').checked)return;
+// Avions (OpenSky, zone visible)// ============================================================
+// AVIONS EN TEMPS RÉEL — ADSB.LOL
+// ============================================================
 
-  if(map.getZoom()<5){
+let planesLoading = false;
+let planesTimer = null;
+let planesAbortController = null;
+let lastPlanesRequest = 0;
+
+async function loadPlanes(force = false) {
+
+  // Fonction désactivée
+  if (!$('c-planes').checked) {
     G.planes.clearLayers();
-    $('n-planes').textContent='zoom +';
+    $('n-planes').textContent = 'off';
     return;
   }
 
-  const c=map.getCenter();
+  // Trop dézoomé
+  if (map.getZoom() < 5) {
+    G.planes.clearLayers();
+    $('n-planes').textContent = 'zoom +';
+    return;
+  }
 
-  // Rayon limité pour éviter une requête trop lourde
-  const r=Math.min(
-    100,
-    Math.max(
-      10,
-      Math.ceil(map.distance(c,map.getBounds().getNorthEast())/1852)
-    )
+  // Évite plusieurs requêtes simultanées
+  if (planesLoading) return;
+
+  // Évite de solliciter l'API trop rapidement
+  const now = Date.now();
+
+  if (!force && now - lastPlanesRequest < 10000) {
+    return;
+  }
+
+  lastPlanesRequest = now;
+  planesLoading = true;
+
+  // Annule une éventuelle ancienne requête
+  if (planesAbortController) {
+    planesAbortController.abort();
+  }
+
+  planesAbortController = new AbortController();
+
+  const center = map.getCenter();
+
+  // Rayon basé sur la carte visible
+  let radius = Math.ceil(
+    map.distance(
+      center,
+      map.getBounds().getNorthEast()
+    ) / 1852
   );
 
-  const url=`https://api.adsb.lol/v2/point/${c.lat.toFixed(3)}/${c.lng.toFixed(3)}/${r}`;
+  // Limites ADSB.lol
+  radius = Math.max(10, Math.min(radius, 100));
 
-  try{
-    const response=await fetch(url);
+  const url =
+    `https://api.adsb.lol/v2/point/` +
+    `${center.lat.toFixed(3)}/` +
+    `${center.lng.toFixed(3)}/` +
+    `${radius}`;
 
-    if(!response.ok){
-      throw new Error(`HTTP ${response.status}`);
-    }
+  try {
 
-    const d=await response.json();
+    $('n-planes').textContent = '…';
 
-    console.log("ADSB.LOL :",d);
-
-    G.planes.clearLayers();
-
-    const s=(d.ac||[]).filter(
-      x=>x.lat!=null &&
-         x.lon!=null &&
-         x.alt_baro!=='ground'
-    );
-
-    s.forEach(x=>{
-      const m=L.marker(
-        [x.lat,x.lon],
-        {
-          icon:L.divIcon({
-            className:'',
-            html:`<div class="plane"
-              style="transform:rotate(${(x.track||0)-45}deg)">
-              ✈
-            </div>`,
-            iconSize:[16,16]
-          })
-        }
-      );
-
-      m.bindPopup(`
-        <b>${(x.flight||'').trim()||x.hex}</b><br>
-        Type : ${x.t||'–'}<br>
-        Altitude : ${
-          typeof x.alt_baro==='number'
-          ? x.alt_baro+' ft'
-          : '–'
-        }<br>
-        Vitesse : ${
-          x.gs
-          ? Math.round(x.gs*1.852)+' km/h'
-          : '–'
-        }
-      `);
-
-      G.planes.addLayer(m);
+    const response = await fetch(url, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: planesAbortController.signal,
+      headers: {
+        'Accept': 'application/json'
+      }
     });
 
-    $('n-planes').textContent=s.length;
+    // Gestion des erreurs HTTP
+    if (!response.ok) {
 
-    msg(
-      s.length
-      ? `${s.length} avion${s.length>1?'s':''} détecté${s.length>1?'s':''}`
-      : 'Aucun avion détecté dans cette zone.'
+      if (response.status === 429) {
+        throw new Error(
+          'API temporairement limitée (429)'
+        );
+      }
+
+      if (response.status === 400) {
+        throw new Error(
+          'Requête invalide (400)'
+        );
+      }
+
+      if (response.status === 403) {
+        throw new Error(
+          'Accès refusé (403)'
+        );
+      }
+
+      if (response.status === 404) {
+        throw new Error(
+          'Endpoint introuvable (404)'
+        );
+      }
+
+      throw new Error(
+        `Erreur API HTTP ${response.status}`
+      );
+    }
+
+    const data = await response.json();
+
+    console.log('ADSB.LOL — réponse :', data);
+
+    // ADSB.lol retourne les avions dans "ac"
+    const aircraft = Array.isArray(data.ac)
+      ? data.ac
+      : [];
+
+    // On garde uniquement les appareils ayant une position
+    // et qui ne sont pas au sol.
+    const planes = aircraft.filter(plane => {
+
+      const validPosition =
+        Number.isFinite(Number(plane.lat)) &&
+        Number.isFinite(Number(plane.lon));
+
+      const notGround =
+        plane.alt_baro !== 'ground';
+
+      return validPosition && notGround;
+    });
+
+    // Nettoyage des anciens avions
+    G.planes.clearLayers();
+
+    // Création des nouveaux avions
+    planes.forEach(plane => {
+
+      const lat = Number(plane.lat);
+      const lon = Number(plane.lon);
+
+      const track =
+        Number.isFinite(Number(plane.track))
+          ? Number(plane.track)
+          : 0;
+
+      const callsign =
+        (plane.flight || '').trim() ||
+        plane.hex ||
+        'Avion inconnu';
+
+      const type =
+        plane.t ||
+        plane.type ||
+        'Inconnu';
+
+      const altitude =
+        typeof plane.alt_baro === 'number'
+          ? `${Math.round(plane.alt_baro).toLocaleString('fr-FR')} ft`
+          : 'Inconnue';
+
+      const speed =
+        typeof plane.gs === 'number'
+          ? `${Math.round(plane.gs * 1.852)} km/h`
+          : 'Inconnue';
+
+      const icon = L.divIcon({
+        className: 'plane-icon',
+        html: `
+          <div
+            class="plane"
+            style="transform: rotate(${track}deg);"
+          >✈</div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+
+      const marker = L.marker(
+        [lat, lon],
+        { icon }
+      );
+
+      marker.bindPopup(`
+        <div style="min-width:180px">
+
+          <b style="font-size:16px">
+            ${callsign}
+          </b>
+
+          <br><br>
+
+          <b>Type :</b> ${type}
+
+          <br>
+
+          <b>Altitude :</b> ${altitude}
+
+          <br>
+
+          <b>Vitesse :</b> ${speed}
+
+          <br>
+
+          <b>Cap :</b> ${Math.round(track)}°
+
+          <br>
+
+          <b>Hex :</b> ${plane.hex || '–'}
+
+        </div>
+      `);
+
+      G.planes.addLayer(marker);
+    });
+
+    // Compteur
+    $('n-planes').textContent = planes.length;
+
+    // Message
+    if (planes.length === 0) {
+
+      msg(
+        `Aucun avion détecté dans un rayon de ${radius} NM.`
+      );
+
+    } else {
+
+      msg(
+        `${planes.length} avion` +
+        (planes.length > 1 ? 's' : '') +
+        ` détecté` +
+        (planes.length > 1 ? 's' : '')
+      );
+    }
+
+  } catch (error) {
+
+    // Une requête annulée n'est pas une vraie erreur
+    if (error.name === 'AbortError') {
+      return;
+    }
+
+    console.error(
+      'Erreur ADSB.LOL :',
+      error
     );
 
-  }catch(e){
-    console.error("Erreur ADSB.LOL :",e);
+    $('n-planes').textContent = '!';
 
-    $('n-planes').textContent='!';
+    msg(
+      `Avions indisponibles : ${error.message}`
+    );
 
-    msg(`Erreur avions : ${e.message}`);
+  } finally {
+
+    planesLoading = false;
   }
 }
+  // ============================================================
+// RAFRAÎCHISSEMENT DES AVIONS
+// ============================================================
+
+// Quand on déplace la carte
+map.on('moveend', () => {
+
+  // On attend un court instant avant de requêter l'API
+  clearTimeout(planesTimer);
+
+  planesTimer = setTimeout(() => {
+    loadPlanes(true);
+  }, 800);
+
+  updCams();
+});
+
+// Actualisation automatique toutes les 30 secondes
+setInterval(() => {
+  loadPlanes(true);
+}, 30000);
 
 // Séismes (USGS)
 async function loadQuakes(){
@@ -211,8 +400,13 @@ $('q-form').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if
     msg(r[0].display_name.split(',').slice(0,2).join(','));$('q').blur()}
   catch(err){msg('Recherche indisponible.')}};
 
-loadQuakes();loadEvents();loadISS();loadPlanes();
-setInterval(loadQuakes,300000);setInterval(loadEvents,600000);
+loadQuakes();
+loadEvents();
+loadISS();
+loadPlanes();
+
+setInterval(loadQuakes,300000);
+setInterval(loadEvents,600000);
 </script>
 </body>
 </html>
