@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Œil du monde — test avions</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{--bg:#10202e;--panel:#182d3f;--ink:#e8eef3;--mute:#8ea3b4;--plane:#5cc8ff;--quake:#ffb347;--event:#ff7a6b;--iss:#fff}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Trebuchet MS",Verdana,sans-serif}#map{position:absolute;inset:0}
+#top{position:absolute;z-index:1000;top:10px;left:10px;right:10px;display:flex;flex-direction:column;gap:8px;max-width:640px}#q-form{display:flex;gap:6px}#q{flex:1;min-width:0;padding:11px 14px;border-radius:24px;border:1px solid #33506a;background:var(--panel);color:var(--ink);font:inherit}#q::placeholder{color:var(--mute)}
+#chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.chip{position:relative;display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:22px;background:var(--panel);border:1px solid #33506a;white-space:nowrap;cursor:pointer;flex:none;color:var(--mute)}.chip input{position:absolute;opacity:0;pointer-events:none}.chip i{width:11px;height:11px;border-radius:50%;background:var(--c)}.chip:has(input:checked){color:var(--ink);border-color:var(--c);background:#22405a}.chip .n{font-size:13px;color:var(--mute)}
+.fab{width:48px;height:48px;border-radius:50%;border:1px solid #33506a;background:var(--panel);color:var(--ink);font-size:21px;display:flex;align-items:center;justify-content:center;text-decoration:none;cursor:pointer;padding:0}.fab:hover,.fab:focus-visible{background:#22405a;outline:2px solid var(--plane)}
+#fabs{position:absolute;z-index:1000;right:10px;bottom:24px;display:flex;flex-direction:column;gap:10px}#msg{position:absolute;z-index:1000;left:64px;bottom:24px;max-width:calc(100% - 140px);padding:7px 12px;border-radius:16px;background:var(--panel);color:var(--mute);font-size:13px}#msg:empty{display:none}.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.6)}.plane{color:var(--plane);font-size:16px;text-shadow:0 0 3px #000;line-height:1;transform-origin:center}.leaflet-popup-content{font:14px/1.4 "Trebuchet MS",sans-serif;color:#1a2a36}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="top">
+<form id="q-form"><input id="q" type="search" placeholder="Aller à une ville, un lieu…" aria-label="Rechercher un lieu"><button class="fab" style="width:44px;height:44px;flex:none" aria-label="Rechercher">🔍</button></form>
+<div id="chips">
+<label class="chip" style="--c:var(--plane)"><input type="checkbox" id="c-planes" checked><i></i>Avions <span class="n" id="n-planes">–</span></label>
+<label class="chip" style="--c:var(--quake)"><input type="checkbox" id="c-quakes" checked><i></i>Séismes <span class="n" id="n-quakes">–</span></label>
+<label class="chip" style="--c:var(--event)"><input type="checkbox" id="c-events" checked><i></i>Événements <span class="n" id="n-events">–</span></label>
+<label class="chip" style="--c:var(--iss)"><input type="checkbox" id="c-iss" checked><i></i>ISS <span class="n" id="n-iss">–</span></label>
+</div></div>
+<div id="fabs"><a class="fab" id="cams" target="_blank" rel="noopener" title="Webcams publiques ici (Windy)" aria-label="Webcams publiques">📹</a><button class="fab" id="loc" title="Me centrer sur moi" aria-label="Me centrer sur moi">📍</button></div>
+<div id="msg">Touche la carte pour la météo</div>
+
+<script>
+const $=id=>document.getElementById(id),msg=t=>$('msg').textContent=t;
+const map=L.map('map',{worldCopyJump:true,zoomControl:false}).setView([49.2,2.6],5);
+L.control.zoom({position:'bottomleft'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© OpenStreetMap'}).addTo(map);
+
+const G={planes:L.layerGroup(),quakes:L.layerGroup(),events:L.layerGroup(),iss:L.layerGroup()};
+for(const k in G){G[k].addTo(map);$('c-'+k).onchange=e=>{if(e.target.checked){G[k].addTo(map);if(k==='planes')loadPlanes()}else{map.removeLayer(G[k]);if(k==='planes'){G.planes.clearLayers();$('n-planes').textContent='off'}}}};
+
+async function j(url){const r=await fetch(url);if(!r.ok)throw new Error(r.status);return r.json()}
+
+/* AVIONS : bloc totalement indépendant du reste de la carte. */
+let planeTimer=null,planeBusy=false;
+async function loadPlanes(){
+  if(planeBusy||!$('c-planes').checked||map.getZoom()<5)return;
+  planeBusy=true;
+  const c=map.getCenter();
+  const radius=Math.max(10,Math.min(100,Math.ceil(map.distance(c,map.getBounds().getNorthEast())/1852)));
+  const url=`https://api.adsb.lol/v2/point/${c.lat.toFixed(3)}/${c.lng.toFixed(3)}/${radius}`;
+  $('n-planes').textContent='…';
+  try{
+    const r=await fetch(url,{cache:'no-store'});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const d=await r.json(),a=Array.isArray(d.ac)?d.ac:[];
+    G.planes.clearLayers();
+    let n=0;
+    for(const p of a){
+      const lat=Number(p.lat),lon=Number(p.lon);
+      if(!Number.isFinite(lat)||!Number.isFinite(lon)||p.alt_baro==='ground')continue;
+      const track=Number.isFinite(Number(p.track))?Number(p.track):0;
+      const callsign=(p.flight||'').trim()||p.hex||'Avion inconnu';
+      const altitude=typeof p.alt_baro==='number'?`${Math.round(p.alt_baro).toLocaleString('fr-FR')} ft`:'Inconnue';
+      const speed=typeof p.gs==='number'?`${Math.round(p.gs*1.852)} km/h`:'Inconnue';
+      const icon=L.divIcon({className:'plane-icon',html:`<div class="plane" style="transform:rotate(${track}deg)">✈</div>`,iconSize:[22,22],iconAnchor:[11,11]});
+      L.marker([lat,lon],{icon}).bindPopup(`<b>${callsign}</b><br><br>Type : ${p.t||'Inconnu'}<br>Altitude : ${altitude}<br>Vitesse : ${speed}<br>Cap : ${Math.round(track)}°<br>Hex : ${p.hex||'–'}`).addTo(G.planes);
+      n++;
+    }
+    $('n-planes').textContent=n;
+    msg(n?`${n} avion${n>1?'s':''} détecté${n>1?'s':''}`:`Aucun avion détecté dans ${radius} NM.`);
+  }catch(e){
+    console.error('ADSB.LOL',e,url);
+    $('n-planes').textContent='!';
+    msg(`Avions indisponibles : ${e.message}`);
+  }finally{planeBusy=false}
+}
+map.on('moveend',()=>{clearTimeout(planeTimer);planeTimer=setTimeout(loadPlanes,900);updCams()});
+setInterval(loadPlanes,30000);
+
+/* SÉISMES */
+async function loadQuakes(){try{const d=await j('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');G.quakes.clearLayers();d.features.forEach(f=>{const[lo,la]=f.geometry.coordinates,m=f.properties.mag||0;L.circleMarker([la,lo],{radius:3+m*2.2,color:'#ffb347',fillColor:'#ffb347',fillOpacity:.35,weight:1}).bindPopup(`<b>M ${m}</b><br>${f.properties.place}<br>${new Date(f.properties.time).toLocaleString('fr-FR')}`).addTo(G.quakes)});$('n-quakes').textContent=d.features.length}catch(e){$('n-quakes').textContent='!'}}
+
+/* ÉVÉNEMENTS */
+async function loadEvents(){try{const d=await j('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200');G.events.clearLayers();let n=0;d.events.forEach(e=>{const g=e.geometry[e.geometry.length-1];if(g.type!=='Point')return;L.circleMarker([g.coordinates[1],g.coordinates[0]],{radius:7,color:'#ff7a6b',fillColor:'#ff7a6b',fillOpacity:.5,weight:2}).bindPopup(`<b>${e.title}</b><br>${e.categories[0].title}<br>${new Date(g.date).toLocaleDateString('fr-FR')}`).addTo(G.events);n++});$('n-events').textContent=n}catch(e){$('n-events').textContent='!'}}
+
+/* ISS */
+let trail=[];
+async function loadISS(){try{const d=await j('https://api.wheretheiss.at/v1/satellites/25544'),p=[d.latitude,d.longitude];trail.push(p);if(trail.length>90)trail.shift();G.iss.clearLayers();L.polyline(trail,{color:'#fff',weight:1,opacity:.5,dashArray:'3 5'}).addTo(G.iss);L.circleMarker(p,{radius:7,color:'#fff',fillColor:'#fff',fillOpacity:1}).bindPopup(`<b>Station spatiale</b><br>Altitude : ${Math.round(d.altitude)} km<br>Vitesse : ${Math.round(d.velocity)} km/h`).addTo(G.iss);$('n-iss').textContent=Math.round(d.altitude)+' km'}catch(e){$('n-iss').textContent='!'}}
+setInterval(loadISS,6000);
+
+/* MÉTÉO */
+map.on('click',async e=>{try{const d=await j(`https://api.open-meteo.com/v1/forecast?latitude=${e.latlng.lat}&longitude=${e.latlng.lng}&current=temperature_2m,wind_speed_10m,precipitation,cloud_cover`),c=d.current;L.popup().setLatLng(e.latlng).setContent(`<b>Météo ici</b><br>${c.temperature_2m} °C<br>Vent : ${c.wind_speed_10m} km/h<br>Pluie : ${c.precipitation} mm<br>Nuages : ${c.cloud_cover} %`).openOn(map)}catch(e){msg('Météo indisponible.')}});
+
+/* WEBCAMS */
+function updCams(){const c=map.getCenter();$('cams').href=`https://www.windy.com/-Webcams-webcams?${c.lat.toFixed(3)},${c.lng.toFixed(3)},${Math.max(5,map.getZoom())}`}updCams();
+
+/* GÉOLOCALISATION */
+$('loc').onclick=()=>{if(!navigator.geolocation){msg('Géolocalisation non supportée.');return}navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],8),()=>msg('Position refusée.'))};
+
+/* RECHERCHE */
+$('q-form').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if(!q)return;try{const r=await j('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));if(!r.length){msg('Lieu introuvable.');return}const b=r[0].boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:9});msg(r[0].display_name.split(',').slice(0,2).join(','));$('q').blur()}catch(e){msg('Recherche indisponible.')}};
+
+/* CHARGEMENT */
+loadQuakes();loadEvents();loadISS();loadPlanes();
+setInterval(loadQuakes,300000);
+setInterval(loadEvents,600000);
+</script>
+</body>
+</html>
