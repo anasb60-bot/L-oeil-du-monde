@@ -4,107 +4,428 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Œil du monde</title>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
 <style>
-:root{--bg:#10202e;--panel:#182d3f;--ink:#e8eef3;--mute:#8ea3b4;--plane:#5cc8ff;--quake:#ffb347;--event:#ff7a6b;--iss:#ffffff}
+:root{
+  --bg:#10202e;
+  --panel:#182d3f;
+  --ink:#e8eef3;
+  --mute:#8ea3b4;
+  --plane:#5cc8ff;
+  --quake:#ffb347;
+  --event:#ff7a6b;
+  --iss:#ffffff
+}
+
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Trebuchet MS",Verdana,sans-serif}
-#map{position:absolute;inset:0}
-#top{position:absolute;z-index:1000;top:10px;left:10px;right:10px;display:flex;flex-direction:column;gap:8px;max-width:640px}
-#q-form{display:flex;gap:6px}
-#q{flex:1;min-width:0;padding:11px 14px;border-radius:24px;border:1px solid #33506a;background:var(--panel);color:var(--ink);font:inherit}
-#q::placeholder{color:var(--mute)}
-#chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
-.chip{position:relative;display:flex;align-items:center;gap:7px;padding:9px 13px;border-radius:22px;background:var(--panel);border:1px solid #33506a;white-space:nowrap;cursor:pointer;flex:none;color:var(--mute)}
-.chip input{position:absolute;opacity:0;pointer-events:none}
-.chip i{width:11px;height:11px;border-radius:50%;background:var(--c)}
-.chip:has(input:checked){color:var(--ink);border-color:var(--c);background:#22405a}
-.chip:has(input:focus-visible){outline:2px solid var(--plane)}
-.chip .n{font-size:13px;color:var(--mute)}
-.fab{width:48px;height:48px;border-radius:50%;border:1px solid #33506a;background:var(--panel);color:var(--ink);font-size:21px;display:flex;align-items:center;justify-content:center;text-decoration:none;cursor:pointer;padding:0}
-.fab:hover,.fab:focus-visible{background:#22405a;outline:2px solid var(--plane)}
-#fabs{position:absolute;z-index:1000;right:10px;bottom:24px;display:flex;flex-direction:column;gap:10px}
-#msg{position:absolute;z-index:1000;left:64px;bottom:24px;max-width:calc(100% - 140px);padding:7px 12px;border-radius:16px;background:var(--panel);color:var(--mute);font-size:13px}
-#msg:empty{display:none}
-.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.6)}
-.plane{color:var(--plane);font-size:16px;text-shadow:0 0 3px #000;line-height:1}
-.leaflet-popup-content{font:14px/1.4 "Trebuchet MS",sans-serif;color:#1a2a36}
+
+html,body{
+  height:100%;
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:16px/1.4 "Trebuchet MS",Verdana,sans-serif
+}
+
+#map{
+  position:absolute;
+  inset:0
+}
+
+#top{
+  position:absolute;
+  z-index:1000;
+  top:10px;
+  left:10px;
+  right:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-width:640px
+}
+
+#q-form{
+  display:flex;
+  gap:6px
+}
+
+#q{
+  flex:1;
+  min-width:0;
+  padding:11px 14px;
+  border-radius:24px;
+  border:1px solid #33506a;
+  background:var(--panel);
+  color:var(--ink);
+  font:inherit
+}
+
+#q::placeholder{
+  color:var(--mute)
+}
+
+#chips{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding-bottom:2px;
+  scrollbar-width:none
+}
+
+.chip{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:9px 13px;
+  border-radius:22px;
+  background:var(--panel);
+  border:1px solid #33506a;
+  white-space:nowrap;
+  cursor:pointer;
+  flex:none;
+  color:var(--mute)
+}
+
+.chip input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none
+}
+
+.chip i{
+  width:11px;
+  height:11px;
+  border-radius:50%;
+  background:var(--c)
+}
+
+.chip:has(input:checked){
+  color:var(--ink);
+  border-color:var(--c);
+  background:#22405a
+}
+
+.chip:has(input:focus-visible){
+  outline:2px solid var(--plane)
+}
+
+.chip .n{
+  font-size:13px;
+  color:var(--mute)
+}
+
+.fab{
+  width:48px;
+  height:48px;
+  border-radius:50%;
+  border:1px solid #33506a;
+  background:var(--panel);
+  color:var(--ink);
+  font-size:21px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  cursor:pointer;
+  padding:0
+}
+
+.fab:hover,
+.fab:focus-visible{
+  background:#22405a;
+  outline:2px solid var(--plane)
+}
+
+#fabs{
+  position:absolute;
+  z-index:1000;
+  right:10px;
+  bottom:24px;
+  display:flex;
+  flex-direction:column;
+  gap:10px
+}
+
+#msg{
+  position:absolute;
+  z-index:1000;
+  left:64px;
+  bottom:24px;
+  max-width:calc(100% - 140px);
+  padding:7px 12px;
+  border-radius:16px;
+  background:var(--panel);
+  color:var(--mute);
+  font-size:13px
+}
+
+#msg:empty{
+  display:none
+}
+
+.leaflet-tile-pane{
+  filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.6)
+}
+
+.plane{
+  color:var(--plane);
+  font-size:16px;
+  text-shadow:0 0 3px #000;
+  line-height:1;
+  transform-origin:center
+}
+
+.leaflet-popup-content{
+  font:14px/1.4 "Trebuchet MS",sans-serif;
+  color:#1a2a36
+}
 </style>
 </head>
+
 <body>
+
 <div id="map"></div>
+
 <div id="top">
-  <form id="q-form"><input id="q" type="search" placeholder="Aller à une ville, un lieu…" aria-label="Rechercher un lieu"><button class="fab" style="width:44px;height:44px;flex:none" aria-label="Rechercher">🔍</button></form>
+
+  <form id="q-form">
+
+    <input
+      id="q"
+      type="search"
+      placeholder="Aller à une ville, un lieu…"
+      aria-label="Rechercher un lieu"
+    >
+
+    <button
+      class="fab"
+      style="width:44px;height:44px;flex:none"
+      aria-label="Rechercher"
+    >🔍</button>
+
+  </form>
+
   <div id="chips">
-    <label class="chip" style="--c:var(--plane)"><input type="checkbox" id="c-planes" checked><i></i>Avions<span class="n" id="n-planes">–</span></label>
-    <label class="chip" style="--c:var(--quake)"><input type="checkbox" id="c-quakes" checked><i></i>Séismes<span class="n" id="n-quakes">–</span></label>
-    <label class="chip" style="--c:var(--event)"><input type="checkbox" id="c-events" checked><i></i>Événements<span class="n" id="n-events">–</span></label>
-    <label class="chip" style="--c:var(--iss)"><input type="checkbox" id="c-iss" checked><i></i>ISS<span class="n" id="n-iss">–</span></label>
+
+    <label class="chip" style="--c:var(--plane)">
+      <input type="checkbox" id="c-planes" checked>
+      <i></i>
+      Avions
+      <span class="n" id="n-planes">–</span>
+    </label>
+
+    <label class="chip" style="--c:var(--quake)">
+      <input type="checkbox" id="c-quakes" checked>
+      <i></i>
+      Séismes
+      <span class="n" id="n-quakes">–</span>
+    </label>
+
+    <label class="chip" style="--c:var(--event)">
+      <input type="checkbox" id="c-events" checked>
+      <i></i>
+      Événements
+      <span class="n" id="n-events">–</span>
+    </label>
+
+    <label class="chip" style="--c:var(--iss)">
+      <input type="checkbox" id="c-iss" checked>
+      <i></i>
+      ISS
+      <span class="n" id="n-iss">–</span>
+    </label>
+
   </div>
 </div>
-<div id="fabs">
-  <a class="fab" id="cams" target="_blank" rel="noopener" title="Webcams publiques ici (Windy)" aria-label="Webcams publiques">📹</a>
-  <button class="fab" id="loc" title="Me centrer sur moi" aria-label="Me centrer sur moi">📍</button>
-</div>
-<div id="msg">Touche la carte pour la météo</div>
-<script>
-const map=L.map('map',{worldCopyJump:true,zoomControl:false}).setView([49.2,2.6],5);
-L.control.zoom({position:'bottomleft'}).addTo(map);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:12,attribution:'© OpenStreetMap'}).addTo(map);
-const $=id=>document.getElementById(id),msg=t=>$('msg').textContent=t;
-const G={planes:L.layerGroup(),quakes:L.layerGroup(),events:L.layerGroup(),iss:L.layerGroup()};
-for(const k in G){G[k].addTo(map);$('c-'+k).onchange=e=>{e.target.checked?G[k].addTo(map):map.removeLayer(G[k]);if(k==='planes')loadPlanes()}}
-const j=async u=>{const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json()};
 
-// Avions (OpenSky, zone visible)// ============================================================
-// AVIONS EN TEMPS RÉEL — ADSB.LOL
-// ============================================================
+<div id="fabs">
+
+  <a
+    class="fab"
+    id="cams"
+    target="_blank"
+    rel="noopener"
+    title="Webcams publiques ici (Windy)"
+    aria-label="Webcams publiques"
+  >📹</a>
+
+  <button
+    class="fab"
+    id="loc"
+    title="Me centrer sur moi"
+    aria-label="Me centrer sur moi"
+  >📍</button>
+
+</div>
+
+<div id="msg">Touche la carte pour la météo</div>
+
+<script>
+
+/* ============================================================
+   CARTE
+   ============================================================ */
+
+const map = L.map('map',{
+  worldCopyJump:true,
+  zoomControl:false
+}).setView([49.2,2.6],5);
+
+L.control.zoom({
+  position:'bottomleft'
+}).addTo(map);
+
+L.tileLayer(
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  {
+    maxZoom:12,
+    attribution:'© OpenStreetMap'
+  }
+).addTo(map);
+
+
+/* ============================================================
+   OUTILS
+   ============================================================ */
+
+const $ = id => document.getElementById(id);
+
+const msg = t => {
+  $('msg').textContent = t;
+};
+
+const G = {
+  planes:L.layerGroup(),
+  quakes:L.layerGroup(),
+  events:L.layerGroup(),
+  iss:L.layerGroup()
+};
+
+for(const k in G){
+
+  G[k].addTo(map);
+
+  $('c-'+k).onchange = e => {
+
+    if(e.target.checked){
+
+      G[k].addTo(map);
+
+      if(k === 'planes'){
+        loadPlanes(true);
+      }
+
+    }else{
+
+      map.removeLayer(G[k]);
+
+      if(k === 'planes'){
+        G.planes.clearLayers();
+        $('n-planes').textContent = 'off';
+      }
+    }
+  };
+}
+
+
+/* ============================================================
+   REQUÊTES JSON
+   ============================================================ */
+
+const j = async url => {
+
+  const response = await fetch(url);
+
+  if(!response.ok){
+    throw new Error(response.status);
+  }
+
+  return response.json();
+};
+
+
+/* ============================================================
+   AVIONS EN TEMPS RÉEL — ADSB.LOL
+   ============================================================ */
 
 let planesLoading = false;
 let planesTimer = null;
 let planesAbortController = null;
 let lastPlanesRequest = 0;
+let planesRequestId = 0;
 
-async function loadPlanes(force = false) {
+async function loadPlanes(force = false){
 
-  // Fonction désactivée
-  if (!$('c-planes').checked) {
+  /* Avions désactivés */
+  if(!$('c-planes').checked){
+
     G.planes.clearLayers();
     $('n-planes').textContent = 'off';
+
     return;
   }
 
-  // Trop dézoomé
-  if (map.getZoom() < 5) {
+
+  /* Trop dézoomé */
+  if(map.getZoom() < 5){
+
     G.planes.clearLayers();
     $('n-planes').textContent = 'zoom +';
+
     return;
   }
 
-  // Évite plusieurs requêtes simultanées
-  if (planesLoading) return;
 
-  // Évite de solliciter l'API trop rapidement
+  /*
+    On évite de solliciter l'API trop rapidement.
+    Même avec force=true, il faut au moins 5 secondes
+    entre deux requêtes.
+  */
+
   const now = Date.now();
 
-  if (!force && now - lastPlanesRequest < 10000) {
+  if(now - lastPlanesRequest < 5000){
     return;
   }
 
   lastPlanesRequest = now;
-  planesLoading = true;
 
-  // Annule une éventuelle ancienne requête
-  if (planesAbortController) {
+
+  /*
+    On annule une éventuelle requête précédente.
+  */
+
+  if(planesAbortController){
     planesAbortController.abort();
   }
 
+  planesRequestId++;
+
+  const requestId = planesRequestId;
+
   planesAbortController = new AbortController();
+
+  const controller = planesAbortController;
+
+  planesLoading = true;
+
+
+  /*
+    Centre de la carte
+  */
 
   const center = map.getCenter();
 
-  // Rayon basé sur la carte visible
+
+  /*
+    Calcul du rayon visible.
+    Limité à 100 NM pour éviter les requêtes trop lourdes.
+  */
+
   let radius = Math.ceil(
     map.distance(
       center,
@@ -112,8 +433,15 @@ async function loadPlanes(force = false) {
     ) / 1852
   );
 
-  // Limites ADSB.lol
-  radius = Math.max(10, Math.min(radius, 100));
+  radius = Math.max(
+    10,
+    Math.min(radius,100)
+  );
+
+
+  /*
+    URL ADSB.LOL
+  */
 
   const url =
     `https://api.adsb.lol/v2/point/` +
@@ -121,44 +449,67 @@ async function loadPlanes(force = false) {
     `${center.lng.toFixed(3)}/` +
     `${radius}`;
 
-  try {
+
+  try{
 
     $('n-planes').textContent = '…';
 
-    const response = await fetch(url, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: planesAbortController.signal,
-      headers: {
-        'Accept': 'application/json'
+
+    /*
+      Appel API
+    */
+
+    const response = await fetch(url,{
+
+      method:'GET',
+
+      cache:'no-store',
+
+      signal:controller.signal,
+
+      headers:{
+        'Accept':'application/json'
       }
+
     });
 
-    // Gestion des erreurs HTTP
-    if (!response.ok) {
 
-      if (response.status === 429) {
+    /*
+      Gestion des erreurs HTTP
+    */
+
+    if(!response.ok){
+
+      if(response.status === 429){
+
         throw new Error(
           'API temporairement limitée (429)'
         );
+
       }
 
-      if (response.status === 400) {
+      if(response.status === 400){
+
         throw new Error(
           'Requête invalide (400)'
         );
+
       }
 
-      if (response.status === 403) {
+      if(response.status === 403){
+
         throw new Error(
           'Accès refusé (403)'
         );
+
       }
 
-      if (response.status === 404) {
+      if(response.status === 404){
+
         throw new Error(
           'Endpoint introuvable (404)'
         );
+
       }
 
       throw new Error(
@@ -166,17 +517,33 @@ async function loadPlanes(force = false) {
       );
     }
 
+
+    /*
+      Lecture JSON
+    */
+
     const data = await response.json();
 
-    console.log('ADSB.LOL — réponse :', data);
+    console.log(
+      'ADSB.LOL — réponse :',
+      data
+    );
 
-    // ADSB.lol retourne les avions dans "ac"
+
+    /*
+      ADSB.LOL place les avions dans "ac".
+    */
+
     const aircraft = Array.isArray(data.ac)
       ? data.ac
       : [];
 
-    // On garde uniquement les appareils ayant une position
-    // et qui ne sont pas au sol.
+
+    /*
+      On garde seulement les avions ayant
+      une position valide et qui ne sont pas au sol.
+    */
+
     const planes = aircraft.filter(plane => {
 
       const validPosition =
@@ -187,60 +554,134 @@ async function loadPlanes(force = false) {
         plane.alt_baro !== 'ground';
 
       return validPosition && notGround;
+
     });
 
-    // Nettoyage des anciens avions
+
+    /*
+      Si une réponse ancienne arrive après une nouvelle,
+      on l'ignore.
+    */
+
+    if(requestId !== planesRequestId){
+      return;
+    }
+
+
+    /*
+      Nettoyage des anciens avions.
+    */
+
     G.planes.clearLayers();
 
-    // Création des nouveaux avions
+
+    /*
+      Création des avions.
+    */
+
     planes.forEach(plane => {
 
       const lat = Number(plane.lat);
+
       const lon = Number(plane.lon);
+
+
+      /*
+        Cap de l'avion.
+      */
 
       const track =
         Number.isFinite(Number(plane.track))
           ? Number(plane.track)
           : 0;
 
+
+      /*
+        Indicatif.
+      */
+
       const callsign =
         (plane.flight || '').trim() ||
         plane.hex ||
         'Avion inconnu';
+
+
+      /*
+        Type.
+      */
 
       const type =
         plane.t ||
         plane.type ||
         'Inconnu';
 
+
+      /*
+        Altitude.
+      */
+
       const altitude =
         typeof plane.alt_baro === 'number'
-          ? `${Math.round(plane.alt_baro).toLocaleString('fr-FR')} ft`
+          ? `${Math.round(
+              plane.alt_baro
+            ).toLocaleString('fr-FR')} ft`
           : 'Inconnue';
+
+
+      /*
+        Vitesse.
+        ADSB utilise généralement les nœuds en knots.
+        Conversion knots → km/h.
+      */
 
       const speed =
         typeof plane.gs === 'number'
-          ? `${Math.round(plane.gs * 1.852)} km/h`
+          ? `${Math.round(
+              plane.gs * 1.852
+            )} km/h`
           : 'Inconnue';
 
+
+      /*
+        Icône avion.
+      */
+
       const icon = L.divIcon({
-        className: 'plane-icon',
-        html: `
+
+        className:'plane-icon',
+
+        html:`
           <div
             class="plane"
-            style="transform: rotate(${track}deg);"
+            style="transform:rotate(${track}deg)"
           >✈</div>
         `,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
+
+        iconSize:[22,22],
+
+        iconAnchor:[11,11]
+
       });
 
+
+      /*
+        Marker.
+      */
+
       const marker = L.marker(
-        [lat, lon],
-        { icon }
+        [lat,lon],
+        {
+          icon:icon
+        }
       );
 
+
+      /*
+        Informations au clic.
+      */
+
       marker.bindPopup(`
+
         <div style="min-width:180px">
 
           <b style="font-size:16px">
@@ -249,41 +690,62 @@ async function loadPlanes(force = false) {
 
           <br><br>
 
-          <b>Type :</b> ${type}
+          <b>Type :</b>
+          ${type}
 
           <br>
 
-          <b>Altitude :</b> ${altitude}
+          <b>Altitude :</b>
+          ${altitude}
 
           <br>
 
-          <b>Vitesse :</b> ${speed}
+          <b>Vitesse :</b>
+          ${speed}
 
           <br>
 
-          <b>Cap :</b> ${Math.round(track)}°
+          <b>Cap :</b>
+          ${Math.round(track)}°
 
           <br>
 
-          <b>Hex :</b> ${plane.hex || '–'}
+          <b>Hex :</b>
+          ${plane.hex || '–'}
 
         </div>
+
       `);
 
+
+      /*
+        Ajout à la couche.
+      */
+
       G.planes.addLayer(marker);
+
     });
 
-    // Compteur
-    $('n-planes').textContent = planes.length;
 
-    // Message
-    if (planes.length === 0) {
+    /*
+      Compteur.
+    */
+
+    $('n-planes').textContent =
+      planes.length;
+
+
+    /*
+      Message.
+    */
+
+    if(planes.length === 0){
 
       msg(
         `Aucun avion détecté dans un rayon de ${radius} NM.`
       );
 
-    } else {
+    }else{
 
       msg(
         `${planes.length} avion` +
@@ -291,122 +753,515 @@ async function loadPlanes(force = false) {
         ` détecté` +
         (planes.length > 1 ? 's' : '')
       );
+
     }
 
-  } catch (error) {
 
-    // Une requête annulée n'est pas une vraie erreur
-    if (error.name === 'AbortError') {
+  }catch(error){
+
+    /*
+      Une requête annulée n'est pas une erreur.
+    */
+
+    if(error.name === 'AbortError'){
       return;
     }
+
 
     console.error(
       'Erreur ADSB.LOL :',
       error
     );
 
+    console.error(
+      'URL ADSB.LOL :',
+      url
+    );
+
+
     $('n-planes').textContent = '!';
+
 
     msg(
       `Avions indisponibles : ${error.message}`
     );
 
-  } finally {
 
-    planesLoading = false;
+  }finally{
+
+    if(requestId === planesRequestId){
+      planesLoading = false;
+    }
+
   }
+
 }
-  // ============================================================
-// RAFRAÎCHISSEMENT DES AVIONS
-// ============================================================
 
-// Quand on déplace la carte
-map.on('moveend', () => {
 
-  // On attend un court instant avant de requêter l'API
+/* ============================================================
+   RAFRAÎCHISSEMENT DES AVIONS
+   ============================================================ */
+
+map.on('moveend',() => {
+
   clearTimeout(planesTimer);
 
   planesTimer = setTimeout(() => {
+
     loadPlanes(true);
-  }, 800);
+
+  },800);
 
   updCams();
+
 });
 
-// Actualisation automatique toutes les 30 secondes
+
+/*
+  Actualisation automatique toutes les 30 secondes.
+*/
+
 setInterval(() => {
+
   loadPlanes(true);
-}, 30000);
 
-// Séismes (USGS)
+},30000);
+
+
+/* ============================================================
+   SÉISMES — USGS
+   ============================================================ */
+
 async function loadQuakes(){
+
   try{
-    const d=await j('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
+
+    const d = await j(
+      'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson'
+    );
+
     G.quakes.clearLayers();
-    d.features.forEach(f=>{const[lo,la]=f.geometry.coordinates,m=f.properties.mag||0;
-      L.circleMarker([la,lo],{radius:3+m*2.2,color:'#ffb347',fillColor:'#ffb347',fillOpacity:.35,weight:1})
-        .bindPopup(`<b>M ${m}</b><br>${f.properties.place}<br>${new Date(f.properties.time).toLocaleString('fr-FR')}`).addTo(G.quakes)});
-    $('n-quakes').textContent=d.features.length;
-  }catch(e){$('n-quakes').textContent='!'}
+
+
+    d.features.forEach(f => {
+
+      const [
+        lo,
+        la
+      ] = f.geometry.coordinates;
+
+      const m =
+        f.properties.mag || 0;
+
+
+      L.circleMarker(
+        [la,lo],
+        {
+          radius:3 + m * 2.2,
+          color:'#ffb347',
+          fillColor:'#ffb347',
+          fillOpacity:.35,
+          weight:1
+        }
+      )
+      .bindPopup(
+        `<b>M ${m}</b><br>` +
+        `${f.properties.place}<br>` +
+        `${new Date(
+          f.properties.time
+        ).toLocaleString('fr-FR')}`
+      )
+      .addTo(G.quakes);
+
+    });
+
+
+    $('n-quakes').textContent =
+      d.features.length;
+
+
+  }catch(e){
+
+    $('n-quakes').textContent = '!';
+
+  }
+
 }
 
-// Événements naturels (NASA EONET)
+
+/* ============================================================
+   ÉVÉNEMENTS NATURELS — NASA EONET
+   ============================================================ */
+
 async function loadEvents(){
+
   try{
-    const d=await j('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200');
-    G.events.clearLayers();let n=0;
-    d.events.forEach(e=>{const g=e.geometry[e.geometry.length-1];if(g.type!=='Point')return;
-      L.circleMarker([g.coordinates[1],g.coordinates[0]],{radius:7,color:'#ff7a6b',fillColor:'#ff7a6b',fillOpacity:.5,weight:2})
-        .bindPopup(`<b>${e.title}</b><br>${e.categories[0].title}<br>${new Date(g.date).toLocaleDateString('fr-FR')}`).addTo(G.events);n++});
-    $('n-events').textContent=n;
-  }catch(e){$('n-events').textContent='!'}
+
+    const d = await j(
+      'https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200'
+    );
+
+    G.events.clearLayers();
+
+    let n = 0;
+
+
+    d.events.forEach(e => {
+
+      const g =
+        e.geometry[
+          e.geometry.length - 1
+        ];
+
+
+      if(g.type !== 'Point'){
+        return;
+      }
+
+
+      L.circleMarker(
+        [
+          g.coordinates[1],
+          g.coordinates[0]
+        ],
+        {
+          radius:7,
+          color:'#ff7a6b',
+          fillColor:'#ff7a6b',
+          fillOpacity:.5,
+          weight:2
+        }
+      )
+      .bindPopup(
+        `<b>${e.title}</b><br>` +
+        `${e.categories[0].title}<br>` +
+        `${new Date(
+          g.date
+        ).toLocaleDateString('fr-FR')}`
+      )
+      .addTo(G.events);
+
+
+      n++;
+
+    });
+
+
+    $('n-events').textContent = n;
+
+
+  }catch(e){
+
+    $('n-events').textContent = '!';
+
+  }
+
 }
 
-// ISS
-let trail=[],issM,issL;
+
+/* ============================================================
+   ISS
+   ============================================================ */
+
+let trail = [];
+
+
 async function loadISS(){
-  try{
-    const d=await j('https://api.wheretheiss.at/v1/satellites/25544');
-    const p=[d.latitude,d.longitude];
-    trail.push(p);if(trail.length>90)trail.shift();
-    G.iss.clearLayers();
-    L.polyline(trail,{color:'#fff',weight:1,opacity:.5,dashArray:'3 5'}).addTo(G.iss);
-    L.circleMarker(p,{radius:7,color:'#fff',fillColor:'#fff',fillOpacity:1}).bindPopup(`<b>Station spatiale</b><br>Altitude : ${Math.round(d.altitude)} km<br>Vitesse : ${Math.round(d.velocity)} km/h`).addTo(G.iss);
-    $('n-iss').textContent=Math.round(d.altitude)+' km';
-  }catch(e){$('n-iss').textContent='!'}
-}
-setInterval(loadISS,6000);
 
-// Météo au clic (Open-Meteo)
-map.on('click',async e=>{
-  const{lat,lng}=e.latlng;
   try{
-    const d=await j(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,precipitation,cloud_cover`);
-    const c=d.current;
-    L.popup().setLatLng(e.latlng).setContent(`<b>Météo ici</b><br>${c.temperature_2m} °C<br>Vent : ${c.wind_speed_10m} km/h<br>Pluie : ${c.precipitation} mm<br>Nuages : ${c.cover||c.cloud_cover} %`).openOn(map);
-  }catch(err){msg('Météo indisponible.')}
+
+    const d = await j(
+      'https://api.wheretheiss.at/v1/satellites/25544'
+    );
+
+
+    const p = [
+      d.latitude,
+      d.longitude
+    ];
+
+
+    trail.push(p);
+
+
+    if(trail.length > 90){
+      trail.shift();
+    }
+
+
+    G.iss.clearLayers();
+
+
+    L.polyline(
+      trail,
+      {
+        color:'#fff',
+        weight:1,
+        opacity:.5,
+        dashArray:'3 5'
+      }
+    ).addTo(G.iss);
+
+
+    L.circleMarker(
+      p,
+      {
+        radius:7,
+        color:'#fff',
+        fillColor:'#fff',
+        fillOpacity:1
+      }
+    )
+    .bindPopup(
+      `<b>Station spatiale</b><br>` +
+      `Altitude : ${Math.round(
+        d.altitude
+      )} km<br>` +
+      `Vitesse : ${Math.round(
+        d.velocity
+      )} km/h`
+    )
+    .addTo(G.iss);
+
+
+    $('n-iss').textContent =
+      Math.round(d.altitude) + ' km';
+
+
+  }catch(e){
+
+    $('n-iss').textContent = '!';
+
+  }
+
+}
+
+
+setInterval(
+  loadISS,
+  6000
+);
+
+
+/* ============================================================
+   MÉTÉO AU CLIC — OPEN-METEO
+   ============================================================ */
+
+map.on('click',async e => {
+
+  const {
+    lat,
+    lng
+  } = e.latlng;
+
+
+  try{
+
+    const d = await j(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m,precipitation,cloud_cover`
+    );
+
+
+    const c = d.current;
+
+
+    L.popup()
+
+      .setLatLng(e.latlng)
+
+      .setContent(
+        `<b>Météo ici</b><br>` +
+        `${c.temperature_2m} °C<br>` +
+        `Vent : ${c.wind_speed_10m} km/h<br>` +
+        `Pluie : ${c.precipitation} mm<br>` +
+        `Nuages : ${c.cloud_cover} %`
+      )
+
+      .openOn(map);
+
+
+  }catch(err){
+
+    msg(
+      'Météo indisponible.'
+    );
+
+  }
+
 });
 
-// Webcams (lien vers Windy, centré sur la vue)
-function updCams(){const c=map.getCenter();$('cams').href=`https://www.windy.com/-Webcams-webcams?${c.lat.toFixed(3)},${c.lng.toFixed(3)},${Math.max(5,map.getZoom())}`}
+
+/* ============================================================
+   WEBCAMS — WINDY
+   ============================================================ */
+
+function updCams(){
+
+  const c =
+    map.getCenter();
+
+
+  $('cams').href =
+    `https://www.windy.com/-Webcams-webcams?` +
+    `${c.lat.toFixed(3)},` +
+    `${c.lng.toFixed(3)},` +
+    `${Math.max(
+      5,
+      map.getZoom()
+    )}`;
+
+}
+
+
 updCams();
 
-$('loc').onclick=()=>navigator.geolocation?navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],8),()=>msg('Position refusée.')):msg('Géolocalisation non supportée.');
 
-$('q-form').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if(!q)return;
-  try{const r=await j('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));
-    if(!r.length)return msg('Lieu introuvable.');
-    const b=r[0].boundingbox.map(Number);map.fitBounds([[b[0],b[2]],[b[1],b[3]]],{maxZoom:9});
-    msg(r[0].display_name.split(',').slice(0,2).join(','));$('q').blur()}
-  catch(err){msg('Recherche indisponible.')}};
+/* ============================================================
+   GÉOLOCALISATION
+   ============================================================ */
+
+$('loc').onclick = () => {
+
+  if(!navigator.geolocation){
+
+    msg(
+      'Géolocalisation non supportée.'
+    );
+
+    return;
+  }
+
+
+  navigator.geolocation.getCurrentPosition(
+
+    p => {
+
+      map.setView(
+        [
+          p.coords.latitude,
+          p.coords.longitude
+        ],
+        8
+      );
+
+    },
+
+    () => {
+
+      msg(
+        'Position refusée.'
+      );
+
+    }
+
+  );
+
+};
+
+
+/* ============================================================
+   RECHERCHE DE LIEU — NOMINATIM
+   ============================================================ */
+
+$('q-form').onsubmit = async e => {
+
+  e.preventDefault();
+
+
+  const q =
+    $('q').value.trim();
+
+
+  if(!q){
+    return;
+  }
+
+
+  try{
+
+    const r = await j(
+      'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' +
+      encodeURIComponent(q)
+    );
+
+
+    if(!r.length){
+
+      msg(
+        'Lieu introuvable.'
+      );
+
+      return;
+    }
+
+
+    const b =
+      r[0].boundingbox.map(Number);
+
+
+    map.fitBounds(
+
+      [
+        [
+          b[0],
+          b[2]
+        ],
+
+        [
+          b[1],
+          b[3]
+        ]
+      ],
+
+      {
+        maxZoom:9
+      }
+
+    );
+
+
+    msg(
+      r[0].display_name
+        .split(',')
+        .slice(0,2)
+        .join(',')
+    );
+
+
+    $('q').blur();
+
+
+  }catch(err){
+
+    msg(
+      'Recherche indisponible.'
+    );
+
+  }
+
+};
+
+
+/* ============================================================
+   CHARGEMENT INITIAL
+   ============================================================ */
 
 loadQuakes();
 loadEvents();
 loadISS();
 loadPlanes();
 
-setInterval(loadQuakes,300000);
-setInterval(loadEvents,600000);
+setInterval(
+  loadQuakes,
+  300000
+);
+
+setInterval(
+  loadEvents,
+  600000
+);
+
 </script>
+
 </body>
 </html>
